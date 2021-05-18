@@ -1,0 +1,52 @@
+version: '3'
+services:
+    rabbitmq:
+        image: rabbitmq:3-management-alpine
+        container_name: 'message-queue'
+        ports:
+            - "5672:5672"
+            - "15672:15672"
+        volumes:
+            - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+            - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+        networks:
+            - iot-capstone
+
+    consumer:
+        build:
+            dockerfile: Dockerfile
+            context: ./consumer
+        container_name: 'message-consumer'
+        ports:
+            - "4100:4100"
+        volumes:
+            - /app/node_modules
+            - ./consumer:/app
+        command: npm start
+        networks:
+            - iot-capstone
+        depends_on:
+            - "rabbitmq"
+        restart: "unless-stopped"
+
+    producer:
+        build:
+            dockerfile: Dockerfile
+            context: ./producer
+        container_name: 'message-producer'
+        ports:
+            - "4200:4200"
+        volumes:
+            - /app/node_modules
+            - ./producer:/app
+        command: npm start
+        networks:
+            - iot-capstone
+        depends_on:
+            - "rabbitmq"
+        restart: "unless-stopped"
+
+networks:
+    iot-capstone:
+        name: iot-capstone
+        driver: bridge
