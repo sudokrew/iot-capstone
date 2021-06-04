@@ -3,8 +3,10 @@ const bodyParser = require("body-parser");
 const amqp = require('amqplib/callback_api');
 const cors = require("cors");
 
+const { PORT, RABBIT_MQ } = process.env;
+
 const app = express();
-const port = 4200;
+const port = PORT;
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -14,13 +16,10 @@ app.get("/", (req, res) => {
   return res.json({ sanity: "check" });
 });
 
-
 app.post("/transaction", async (req, res, next) => {
-  console.log("reqBody: ", req.body)
   try {
     const { ethAddress, ethAmount } = req.body;
     amqp.connect('amqp://rabbitmq', function(error0, connection) {
-        console.log('sent')
         if (error0) {
             throw error0;
         }
@@ -29,15 +28,17 @@ app.post("/transaction", async (req, res, next) => {
                 throw error1;
             }
 
-            const queue = 'ethTransactionQueue';
-            const msg = `${ethAddress} sent ${ethAmount} ETH`;
+            const queue = RABBIT_MQ;
+
+            const data = {
+              ethAddress,
+              ethAmount,
+            }
 
             channel.assertQueue(queue, {
                 durable: false
             });
-            channel.sendToQueue(queue, Buffer.from(msg));
-
-            console.log(" [x] Sent %s", msg);
+            channel.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
         });
         setTimeout(function() {
             connection.close();
