@@ -35,8 +35,8 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
         try {
           const payload = JSON.parse(msg.content);
           const dataPoint = new Point("transactions")
-            .tag("address", payload.ethAddress)
-            .floatField("value", parseInt(payload.ethAmount))
+            .tag("address", payload.ipAddress)
+            .floatField("value", parseInt(payload.deviceStatus))
             .timestamp(new Date());
 
           influx.writePoint(dataPoint);
