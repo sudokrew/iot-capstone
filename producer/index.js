@@ -1,10 +1,12 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const amqp = require('amqplib/callback_api');
+const amqp = require("amqplib/callback_api");
 const cors = require("cors");
 
+const { PORT, RABBIT_MQ } = process.env;
+
 const app = express();
-const port = 4200;
+const port = PORT;
 
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -14,46 +16,42 @@ app.get("/", (req, res) => {
   return res.json({ sanity: "check" });
 });
 
-
-app.post("/transaction", async (req, res, next) => {
-  console.log("reqBody: ", req.body)
+app.post("/status", async (req, res, next) => {
   try {
-    const { ethAddress, ethAmount } = req.body;
-    amqp.connect('amqp://rabbitmq', function(error0, connection) {
-        console.log('sent')
-        if (error0) {
-            throw error0;
+    const { ipAddress, deviceStatus } = req.body;
+    amqp.connect("amqp://rabbitmq", function (error0, connection) {
+      if (error0) {
+        throw error0;
+      }
+      connection.createChannel(function (error1, channel) {
+        if (error1) {
+          throw error1;
         }
-        connection.createChannel(function(error1, channel) {
-            if (error1) {
-                throw error1;
-            }
 
-            const queue = 'ethTransactionQueue';
-            const msg = `${ethAddress} sent ${ethAmount} ETH`;
+        const queue = RABBIT_MQ;
 
-            channel.assertQueue(queue, {
-                durable: false
-            });
-            channel.sendToQueue(queue, Buffer.from(msg));
+        const data = { ipAddress, deviceStatus };
 
-            console.log(" [x] Sent %s", msg);
+        channel.assertQueue(queue, {
+          durable: false,
         });
-        setTimeout(function() {
-            connection.close();
-        }, 500);
+        channel.sendToQueue(queue, Buffer.from(JSON.stringify(data)));
+      });
+      setTimeout(function () {
+        connection.close();
+      }, 500);
     });
-    res.json({ ethAddress, ethAmount });
+    res.json({ ipAddress, deviceStatus });
   } catch (err) {
-    console.log('ERROR: ', err)
+    console.log("ERROR: ", err);
     next(err);
   }
 });
 
 app.use(function (err, req, res, next) {
-  console.error(err.stack)
-  res.status(500).send('Server Error')
-})
+  console.error(err.stack);
+  res.status(500).send("Server Error");
+});
 
 app.listen(port, () => {
   console.log(`Message producer listening at http://localhost:${port}`);

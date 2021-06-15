@@ -1,6 +1,18 @@
-#!/usr/bin/env node
-
 const amqp = require("amqplib/callback_api");
+const { InfluxDB, Point } = require("@influxdata/influxdb-client");
+const { hostname } = require("os");
+
+const { INFLUX_URL, INFLUX_TOKEN, INFLUX_ORG, INFLUX_BUCKET, RABBIT_MQ } =
+  process.env;
+
+const url = INFLUX_URL;
+const token = INFLUX_TOKEN;
+const org = INFLUX_ORG;
+const bucket = INFLUX_BUCKET;
+
+const influx = new InfluxDB({ url, token })
+  .getWriteApi(org, bucket, "ns")
+  .useDefaultTags({ location: hostname() });
 
 amqp.connect("amqp://rabbitmq", function (error0, connection) {
   if (error0) {
@@ -11,18 +23,26 @@ amqp.connect("amqp://rabbitmq", function (error0, connection) {
       throw error1;
     }
 
-    const queue = "ethTransactionQueue";
+    const queue = RABBIT_MQ;
 
     channel.assertQueue(queue, {
       durable: false,
     });
 
-    console.log(" [*] Waiting for messages in %s. To exit press CTRL+C", queue);
-
     channel.consume(
       queue,
       function (msg) {
-        console.log(" [x] Received %s", msg.content.toString());
+        try {
+          const payload = JSON.parse(msg.content);
+          const dataPoint = new Point("transactions")
+            .tag("address", payload.ipAddress)
+            .floatField("value", parseInt(payload.deviceStatus))
+            .timestamp(new Date());
+
+          influx.writePoint(dataPoint);
+        } catch (err) {
+          console.error("Error sending transaction to influx: ", err);
+        }
       },
       {
         noAck: true,

@@ -1,16 +1,20 @@
-const fetch = require('node-fetch');
-const faker = require('faker');
+const fetch = require("node-fetch");
+const faker = require("faker");
+
+require('dotenv').config()
+
+const { MESSAGE_QUEUE_POST_ENDPOINT } = process.env;
 
 class Device {
-  constructor(ethAddress) {
-    this.ethAddress = ethAddress;
+  constructor(ipAddress) {
+    this.ipAddress = ipAddress;
   }
-  sendTransaction() {
-    const ethAmount = faker.finance.amount(0, 10, 5);
+  sendStatus() {
+    
 
-    const data = { ethAddress: this.ethAddress, ethAmount };
+    const data = { ipAddress: this.ipAddress, deviceStatus: Math.floor(Math.random() * 3) };
 
-    fetch("http://localhost:4200/transaction", {
+    fetch(MESSAGE_QUEUE_POST_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -27,18 +31,18 @@ class Device {
   }
 }
 
-const deviceOne = new Device(faker.finance.ethereumAddress())
-const deviceTwo = new Device(faker.finance.ethereumAddress())
-const deviceThree = new Device(faker.finance.ethereumAddress())
+const deviceOne = new Device(faker.internet.ip());
+const deviceTwo = new Device(faker.internet.ip());
+const deviceThree = new Device(faker.internet.ip());
 
 setInterval(() => {
-    deviceOne.sendTransaction()
-}, 1500)
+  deviceOne.sendStatus();
+}, 1500);
 
 setInterval(() => {
-    deviceTwo.sendTransaction()
-}, 2000)
+  deviceTwo.sendStatus();
+}, 2000);
 
 setInterval(() => {
-  deviceThree.sendTransaction()
-}, 1000)
+  deviceThree.sendStatus();
+}, 1000);
